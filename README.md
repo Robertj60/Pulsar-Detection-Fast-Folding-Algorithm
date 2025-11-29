@@ -1,6 +1,4 @@
-# Pulsar-Detection-Fast-Folding-Algorithm
-
-# 🌌 Pulsar Detection & Universe Expansion Analysis System
+# Pulsar Detection & Universe Expansion Analysis System
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -9,30 +7,30 @@
 
 A comprehensive radio telescope data analysis system for pulsar detection using fast folding algorithms, dispersion measure analysis, and cosmological expansion studies through pulsar mapping.
 
-## 🌟 Features
+## Features
 
 ### Pulsar Detection System
-- ✨ **Fast Folding Algorithm** - Efficient period search across wide parameter space
-- 📡 **Multi-channel Dispersion Analysis** - Dedispersion across 128+ frequency channels
-- 🔍 **Automated DM Search** - Intelligent dispersion measure optimization
-- 📊 **Pulse Profile Extraction** - High-fidelity pulse shape recovery
-- 🎯 **Signal-to-Noise Optimization** - Adaptive thresholding and detection
+- **Fast Folding Algorithm** - Efficient period search across wide parameter space
+- **Multi-channel Dispersion Analysis** - Dedispersion across 128+ frequency channels
+- **Automated DM Search** - Intelligent dispersion measure optimization
+- **Pulse Profile Extraction** - High-fidelity pulse shape recovery
+- **Signal-to-Noise Optimization** - Adaptive thresholding and detection
 
 ### Universe Expansion Analysis
-- 🌌 **3D Pulsar Distribution Mapping** - Realistic spatial distribution modeling
-- 📈 **Hubble Constant Measurement** - Statistical fitting of expansion rate
-- 🔴 **Redshift Analysis** - Cosmological distance-velocity relationships
-- ⚖️ **Expansion vs Contraction Detection** - Determine universe fate
-- 🎨 **Multi-dimensional Visualization** - Comprehensive data presentation
+- **3D Pulsar Distribution Mapping** - Realistic spatial distribution modeling
+- **Hubble Constant Measurement** - Statistical fitting of expansion rate
+- **Redshift Analysis** - Cosmological distance-velocity relationships
+- **Expansion vs Contraction Detection** - Determine universe fate
+- **Multi-dimensional Visualization** - Comprehensive data presentation
 
 ### Advanced Methods
-- ⏱️ **Pulsar Timing Analysis** - Precision period and period derivative measurement
-- 🌍 **Binary Pulsar Effects** - Shapiro delay and orbital parameter extraction
-- 🌊 **Gravitational Wave Signatures** - Nanohertz GW detection via timing arrays
-- 📏 **Cosmological Distance Ladder** - Multiple distance measure calculations
-- 🧮 **Bayesian Parameter Estimation** - MCMC-based uncertainty quantification
+- **Pulsar Timing Analysis** - Precision period and period derivative measurement
+- **Binary Pulsar Effects** - Shapiro delay and orbital parameter extraction
+- **Gravitational Wave Signatures** - Nanohertz GW detection via timing arrays
+- **Cosmological Distance Ladder** - Multiple distance measure calculations
+- **Bayesian Parameter Estimation** - MCMC-based uncertainty quantification
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -45,7 +43,7 @@ A comprehensive radio telescope data analysis system for pulsar detection using 
 - [Citation](#citation)
 - [License](#license)
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
