@@ -1,0 +1,634 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2709
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 import numpy as np\
+import matplotlib.pyplot as plt\
+from scipy.optimize import curve_fit, minimize\
+from scipy.signal import find_peaks\
+from scipy.stats import chi2\
+from typing import Tuple, Dict, List\
+import warnings\
+warnings.filterwarnings('ignore')\
+\
+class AdvancedPulsarMethods:\
+    """\
+    Advanced methods for pulsar timing, gravitational wave detection,\
+    and cosmological parameter estimation\
+    """\
+    \
+    def __init__(self):\
+        self.c = 299792.458  # km/s\
+        self.G = 6.67430e-11  # m\'b3/(kg\'b7s\'b2)\
+        self.M_sun = 1.989e30  # kg\
+        self.pc_to_m = 3.086e16  # meters per parsec\
+        \
+    def pulsar_timing_analysis(self, times: np.ndarray, toas: np.ndarray, \
+                               toa_errors: np.ndarray) -> Dict:\
+        """\
+        Pulsar timing analysis to measure period and period derivative\
+        \
+        Args:\
+            times: Observation times (MJD - Modified Julian Date)\
+            toas: Time of arrivals (seconds)\
+            toa_errors: TOA uncertainties (seconds)\
+            \
+        Returns:\
+            Timing solution dictionary\
+        """\
+        print("Performing pulsar timing analysis...")\
+        \
+        # Fit timing model: TOA = TOA0 + P*N + 0.5*Pdot*N\'b2\
+        # where N is pulse number\
+        \
+        def timing_model(t, toa0, period, pdot):\
+            """Phase model for pulsar timing"""\
+            dt = t - t[0]\
+            pulse_number = dt / period\
+            return toa0 + period * pulse_number + 0.5 * pdot * pulse_number**2\
+        \
+        # Initial guess\
+        p0 = [toas[0], np.median(np.diff(toas)), 0.0]\
+        \
+        # Fit the model\
+        popt, pcov = curve_fit(timing_model, times, toas, p0=p0, \
+                              sigma=toa_errors, absolute_sigma=True)\
+        \
+        toa0_fit, period_fit, pdot_fit = popt\
+        errors = np.sqrt(np.diag(pcov))\
+        \
+        # Calculate residuals\
+        residuals = toas - timing_model(times, *popt)\
+        rms_residual = np.sqrt(np.mean(residuals**2))\
+        \
+        # Chi-squared test\
+        chi_squared = np.sum((residuals / toa_errors)**2)\
+        dof = len(times) - 3\
+        reduced_chi_squared = chi_squared / dof\
+        \
+        # Calculate characteristic age\
+        if pdot_fit > 0:\
+            char_age = period_fit / (2 * pdot_fit)\
+            char_age_years = char_age / (365.25 * 24 * 3600)\
+        else:\
+            char_age_years = np.inf\
+        \
+        return \{\
+            'period': period_fit,\
+            'period_error': errors[1],\
+            'period_derivative': pdot_fit,\
+            'pdot_error': errors[2],\
+            'residuals': residuals,\
+            'rms_residual': rms_residual,\
+            'chi_squared': chi_squared,\
+            'reduced_chi_squared': reduced_chi_squared,\
+            'characteristic_age': char_age_years,\
+            'times': times,\
+            'toas': toas,\
+            'fitted_toas': timing_model(times, *popt)\
+        \}\
+    \
+    def shapiro_delay(self, orbital_phase: np.ndarray, companion_mass: float,\
+                     orbital_inclination: float, semi_major_axis: float) -> np.ndarray:\
+        """\
+        Calculate Shapiro delay in binary pulsar systems\
+        (Einstein's general relativistic time delay)\
+        \
+        Args:\
+            orbital_phase: Orbital phase (0 to 2\uc0\u960 )\
+            companion_mass: Companion mass in solar masses\
+            orbital_inclination: Inclination angle (radians)\
+            semi_major_axis: Semi-major axis in light-seconds\
+            \
+        Returns:\
+            Shapiro delay in microseconds\
+        """\
+        # Shapiro delay formula\
+        # \uc0\u916 t = -2(m/c\'b3) ln(1 - cos(i)cos(\u966 ))\
+        \
+        M_companion = companion_mass * self.M_sun  # kg\
+        a = semi_major_axis * self.c * 1000  # meters\
+        \
+        # Calculate delay\
+        cos_term = np.sin(orbital_inclination) * np.cos(orbital_phase)\
+        \
+        # Avoid log of negative/zero\
+        cos_term = np.clip(cos_term, -0.9999, 0.9999)\
+        \
+        delay = -2 * (self.G * M_companion / self.c**3) * np.log(1 - cos_term)\
+        delay_microsec = delay * 1e6  # Convert to microseconds\
+        \
+        return delay_microsec\
+    \
+    def gravitational_wave_signature(self, times: np.ndarray, \
+                                    gw_amplitude: float = 1e-15,\
+                                    gw_frequency: float = 1e-8) -> np.ndarray:\
+        """\
+        Simulate gravitational wave signature in pulsar timing residuals\
+        \
+        Args:\
+            times: Observation times (years)\
+            gw_amplitude: GW strain amplitude\
+            gw_frequency: GW frequency (Hz)\
+            \
+        Returns:\
+            GW-induced timing residuals (seconds)\
+        """\
+        # GW induces correlated timing residuals\
+        # Hellings-Downs correlation for pulsar timing array\
+        \
+        omega_gw = 2 * np.pi * gw_frequency\
+        \
+        # Convert time to seconds\
+        times_sec = times * 365.25 * 24 * 3600\
+        \
+        # GW signal (simplified monochromatic)\
+        phase = omega_gw * times_sec\
+        residual = (gw_amplitude / omega_gw) * (1 - np.cos(phase))\
+        \
+        return residual\
+    \
+    def cosmological_distance_ladder(self, redshift: float, \
+                                     H0: float = 70.0,\
+                                     omega_m: float = 0.3,\
+                                     omega_lambda: float = 0.7) -> Dict:\
+        """\
+        Calculate various cosmological distances for given redshift\
+        \
+        Args:\
+            redshift: Cosmological redshift z\
+            H0: Hubble constant (km/s/Mpc)\
+            omega_m: Matter density parameter\
+            omega_lambda: Dark energy density parameter\
+            \
+        Returns:\
+            Dictionary of distances\
+        """\
+        # Hubble distance\
+        D_H = self.c / H0  # Mpc\
+        \
+        # Comoving distance (numerical integration)\
+        z_array = np.linspace(0, redshift, 1000)\
+        E_z = np.sqrt(omega_m * (1 + z_array)**3 + omega_lambda)\
+        D_C = D_H * np.trapz(1/E_z, z_array)\
+        \
+        # Luminosity distance\
+        D_L = (1 + redshift) * D_C\
+        \
+        # Angular diameter distance\
+        D_A = D_C / (1 + redshift)\
+        \
+        # Light travel time\
+        integrand = 1 / ((1 + z_array) * E_z)\
+        t_L = (D_H / self.c) * np.trapz(integrand, z_array)  # in Mpc/km/s\
+        t_L_years = t_L * 3.086e19 / (365.25 * 24 * 3600)  # Convert to years\
+        \
+        # Age of universe at redshift z\
+        integrand_age = 1 / ((1 + z_array) * E_z)\
+        z_inf = np.linspace(redshift, 1000, 1000)\
+        E_z_inf = np.sqrt(omega_m * (1 + z_inf)**3 + omega_lambda)\
+        integrand_inf = 1 / ((1 + z_inf) * E_z_inf)\
+        \
+        H0_inv = 1 / (H0 / 3.086e19)  # Hubble time in seconds\
+        age_at_z = H0_inv * np.trapz(integrand_inf, z_inf) / (365.25 * 24 * 3600)\
+        \
+        return \{\
+            'hubble_distance': D_H,\
+            'comoving_distance': D_C,\
+            'luminosity_distance': D_L,\
+            'angular_diameter_distance': D_A,\
+            'light_travel_time': t_L_years,\
+            'age_at_redshift': age_at_z / 1e9,  # billion years\
+            'distance_modulus': 5 * np.log10(D_L * 1e6 / 10)  # for astronomers\
+        \}\
+    \
+    def bayesian_parameter_estimation(self, data: np.ndarray, \
+                                     model_func, param_ranges: Dict,\
+                                     n_samples: int = 10000) -> Dict:\
+        """\
+        Bayesian parameter estimation using Metropolis-Hastings MCMC\
+        \
+        Args:\
+            data: Observed data\
+            model_func: Function(params) that returns model prediction\
+            param_ranges: Dictionary of parameter ranges\
+            n_samples: Number of MCMC samples\
+            \
+        Returns:\
+            Posterior samples and statistics\
+        """\
+        print("Running Bayesian parameter estimation (MCMC)...")\
+        \
+        n_params = len(param_ranges)\
+        param_names = list(param_ranges.keys())\
+        \
+        # Initialize with random parameters\
+        current_params = np.array([np.random.uniform(param_ranges[p][0], \
+                                                     param_ranges[p][1]) \
+                                   for p in param_names])\
+        \
+        # Log likelihood function\
+        def log_likelihood(params):\
+            model = model_func(params)\
+            return -0.5 * np.sum((data - model)**2)\
+        \
+        # Log prior (uniform within ranges)\
+        def log_prior(params):\
+            for i, p in enumerate(param_names):\
+                if not (param_ranges[p][0] <= params[i] <= param_ranges[p][1]):\
+                    return -np.inf\
+            return 0.0\
+        \
+        # MCMC sampling\
+        samples = np.zeros((n_samples, n_params))\
+        acceptance = 0\
+        current_log_prob = log_likelihood(current_params) + log_prior(current_params)\
+        \
+        proposal_std = np.array([0.1 * (param_ranges[p][1] - param_ranges[p][0]) \
+                                for p in param_names])\
+        \
+        for i in range(n_samples):\
+            # Propose new parameters\
+            proposed_params = current_params + np.random.normal(0, proposal_std)\
+            proposed_log_prob = log_likelihood(proposed_params) + log_prior(proposed_params)\
+            \
+            # Accept/reject\
+            if np.log(np.random.uniform()) < (proposed_log_prob - current_log_prob):\
+                current_params = proposed_params\
+                current_log_prob = proposed_log_prob\
+                acceptance += 1\
+            \
+            samples[i] = current_params\
+            \
+            if (i + 1) % 1000 == 0:\
+                print(f"  Sample \{i+1\}/\{n_samples\}, Acceptance rate: \{acceptance/(i+1):.2%\}")\
+        \
+        # Calculate statistics (after burn-in)\
+        burn_in = n_samples // 4\
+        posterior_samples = samples[burn_in:]\
+        \
+        results = \{\
+            'samples': posterior_samples,\
+            'acceptance_rate': acceptance / n_samples,\
+            'param_names': param_names\
+        \}\
+        \
+        for i, p in enumerate(param_names):\
+            results[p + '_mean'] = np.mean(posterior_samples[:, i])\
+            results[p + '_std'] = np.std(posterior_samples[:, i])\
+            results[p + '_median'] = np.median(posterior_samples[:, i])\
+            results[p + '_95ci'] = np.percentile(posterior_samples[:, i], [2.5, 97.5])\
+        \
+        return results\
+    \
+    def dispersion_measure_distance(self, dm: float, model: str = 'ne2001') -> float:\
+        """\
+        Estimate distance from dispersion measure using Galactic electron density model\
+        \
+        Args:\
+            dm: Dispersion measure (pc/cm\'b3)\
+            model: Electron density model ('ne2001' or 'ymw16')\
+            \
+        Returns:\
+            Estimated distance in kpc\
+        """\
+        # Simplified model: DM \uc0\u8733  distance\
+        # Real models (NE2001, YMW16) are much more complex\
+        \
+        if model == 'ne2001':\
+            # Average free electron density in Galaxy ~ 0.03 cm\uc0\u8315 \'b3\
+            ne_avg = 0.03\
+            distance_pc = dm / ne_avg\
+            distance_kpc = distance_pc / 1000\
+        else:  # ymw16\
+            # Slightly different average\
+            ne_avg = 0.025\
+            distance_pc = dm / ne_avg\
+            distance_kpc = distance_pc / 1000\
+        \
+        return distance_kpc\
+    \
+    def pulsar_braking_index(self, period: float, pdot: float, \
+                            pddot: float) -> Tuple[float, str]:\
+        """\
+        Calculate pulsar braking index to determine spin-down mechanism\
+        \
+        Args:\
+            period: Pulsar period (s)\
+            pdot: Period derivative (s/s)\
+            pddot: Second period derivative (s/s\'b2)\
+            \
+        Returns:\
+            Braking index and interpretation\
+        """\
+        n = (2 * pddot * period) / (pdot**2)\
+        \
+        # Interpret braking index\
+        if 2.5 <= n <= 3.5:\
+            mechanism = "Magnetic dipole radiation (n=3 expected)"\
+        elif n > 3.5:\
+            mechanism = "Increasing magnetic field or evolving structure"\
+        elif n < 2.5:\
+            mechanism = "Wind braking or particle outflow"\
+        else:\
+            mechanism = "Unknown mechanism"\
+        \
+        return n, mechanism\
+\
+def demonstrate_methods():\
+    """\
+    Demonstrate all advanced pulsar methods\
+    """\
+    methods = AdvancedPulsarMethods()\
+    \
+    print("="*70)\
+    print("ADVANCED PULSAR ANALYSIS METHODS DEMONSTRATION")\
+    print("="*70)\
+    \
+    # 1. Pulsar Timing Analysis\
+    print("\\n" + "="*70)\
+    print("1. PULSAR TIMING ANALYSIS")\
+    print("="*70)\
+    \
+    # Generate synthetic timing data\
+    n_obs = 100\
+    times = np.linspace(0, 1000, n_obs)  # MJD\
+    true_period = 0.0333  # 33 ms pulsar\
+    true_pdot = 1e-15  # Period derivative\
+    \
+    # Generate TOAs with noise\
+    pulse_numbers = times / true_period\
+    true_toas = true_period * pulse_numbers + 0.5 * true_pdot * pulse_numbers**2\
+    toa_errors = np.random.uniform(1e-6, 1e-5, n_obs)\
+    toas = true_toas + np.random.normal(0, toa_errors)\
+    \
+    timing_result = methods.pulsar_timing_analysis(times, toas, toa_errors)\
+    \
+    print(f"\\nTiming Solution:")\
+    print(f"  Period: \{timing_result['period']*1000:.6f\} \'b1 \{timing_result['period_error']*1000:.6f\} ms")\
+    print(f"  Period derivative: \{timing_result['period_derivative']:.3e\} \'b1 \{timing_result['pdot_error']:.3e\}")\
+    print(f"  RMS residual: \{timing_result['rms_residual']*1e6:.3f\} \uc0\u956 s")\
+    print(f"  Reduced \uc0\u967 \'b2: \{timing_result['reduced_chi_squared']:.3f\}")\
+    print(f"  Characteristic age: \{timing_result['characteristic_age']/1e6:.2f\} Myr")\
+    \
+    # 2. Shapiro Delay (Binary Pulsar)\
+    print("\\n" + "="*70)\
+    print("2. SHAPIRO DELAY IN BINARY SYSTEM")\
+    print("="*70)\
+    \
+    orbital_phase = np.linspace(0, 2*np.pi, 100)\
+    companion_mass = 1.4  # Solar masses\
+    inclination = np.radians(60)  # degrees to radians\
+    semi_major = 2.3  # light-seconds\
+    \
+    delay = methods.shapiro_delay(orbital_phase, companion_mass, inclination, semi_major)\
+    max_delay = np.max(np.abs(delay))\
+    \
+    print(f"\\nBinary System Parameters:")\
+    print(f"  Companion mass: \{companion_mass\} M\uc0\u9737 ")\
+    print(f"  Orbital inclination: \{np.degrees(inclination):.1f\}\'b0")\
+    print(f"  Semi-major axis: \{semi_major\} light-seconds")\
+    print(f"  Maximum Shapiro delay: \{max_delay:.2f\} \uc0\u956 s")\
+    \
+    # 3. Gravitational Wave Detection\
+    print("\\n" + "="*70)\
+    print("3. GRAVITATIONAL WAVE SIGNATURE")\
+    print("="*70)\
+    \
+    obs_times = np.linspace(0, 10, 1000)  # 10 years\
+    gw_amp = 1e-15\
+    gw_freq = 1e-8  # Hz (nanohertz regime)\
+    \
+    gw_signal = methods.gravitational_wave_signature(obs_times, gw_amp, gw_freq)\
+    max_residual = np.max(np.abs(gw_signal))\
+    \
+    print(f"\\nGravitational Wave Parameters:")\
+    print(f"  GW amplitude: \{gw_amp:.2e\}")\
+    print(f"  GW frequency: \{gw_freq*1e9:.2f\} nHz")\
+    print(f"  Maximum timing residual: \{max_residual*1e9:.2f\} ns")\
+    print(f"  Detection feasible with: Pulsar Timing Arrays")\
+    \
+    # 4. Cosmological Distance Ladder\
+    print("\\n" + "="*70)\
+    print("4. COSMOLOGICAL DISTANCE CALCULATIONS")\
+    print("="*70)\
+    \
+    redshifts = [0.1, 0.5, 1.0, 2.0]\
+    \
+    for z in redshifts:\
+        distances = methods.cosmological_distance_ladder(z)\
+        print(f"\\nRedshift z = \{z\}:")\
+        print(f"  Comoving distance: \{distances['comoving_distance']:.1f\} Mpc")\
+        print(f"  Luminosity distance: \{distances['luminosity_distance']:.1f\} Mpc")\
+        print(f"  Angular diameter distance: \{distances['angular_diameter_distance']:.1f\} Mpc")\
+        print(f"  Light travel time: \{distances['light_travel_time']/1e9:.2f\} Gyr")\
+        print(f"  Age at redshift: \{distances['age_at_redshift']:.2f\} Gyr")\
+    \
+    # 5. Dispersion Measure to Distance\
+    print("\\n" + "="*70)\
+    print("5. DISPERSION MEASURE TO DISTANCE CONVERSION")\
+    print("="*70)\
+    \
+    dm_values = [10, 50, 100, 500]\
+    \
+    for dm in dm_values:\
+        dist_ne2001 = methods.dispersion_measure_distance(dm, 'ne2001')\
+        dist_ymw16 = methods.dispersion_measure_distance(dm, 'ymw16')\
+        print(f"\\nDM = \{dm\} pc/cm\'b3:")\
+        print(f"  Distance (NE2001): \{dist_ne2001:.2f\} kpc")\
+        print(f"  Distance (YMW16): \{dist_ymw16:.2f\} kpc")\
+    \
+    # 6. Braking Index\
+    print("\\n" + "="*70)\
+    print("6. PULSAR BRAKING INDEX ANALYSIS")\
+    print("="*70)\
+    \
+    # Example pulsars\
+    pulsars = [\
+        ("Crab Pulsar", 0.0334, 4.21e-13, -2.5e-24),\
+        ("Vela Pulsar", 0.0893, 1.25e-13, 9.8e-25),\
+        ("Young MSP", 0.003, 1e-20, 1e-30)\
+    ]\
+    \
+    for name, P, Pdot, Pddot in pulsars:\
+        n, mechanism = methods.pulsar_braking_index(P, Pdot, Pddot)\
+        print(f"\\n\{name\}:")\
+        print(f"  Period: \{P*1000:.2f\} ms")\
+        print(f"  Braking index: \{n:.2f\}")\
+        print(f"  Mechanism: \{mechanism\}")\
+    \
+    # Create visualizations\
+    create_visualization_plots(methods, timing_result, orbital_phase, delay, \
+                               obs_times, gw_signal)\
+    \
+    return methods\
+\
+def create_visualization_plots(methods, timing_result, orbital_phase, \
+                               shapiro_delay, gw_times, gw_signal):\
+    """\
+    Create comprehensive visualization of all methods\
+    """\
+    fig = plt.figure(figsize=(16, 12))\
+    \
+    # 1. Timing Residuals\
+    ax1 = fig.add_subplot(3, 3, 1)\
+    ax1.errorbar(timing_result['times'], timing_result['residuals']*1e6,\
+                yerr=1, fmt='o', markersize=4, alpha=0.6)\
+    ax1.axhline(0, color='red', linestyle='--', linewidth=2)\
+    ax1.set_xlabel('Time (MJD)', fontsize=10)\
+    ax1.set_ylabel('Timing Residual (\uc0\u956 s)', fontsize=10)\
+    ax1.set_title('Pulsar Timing Residuals', fontweight='bold')\
+    ax1.grid(True, alpha=0.3)\
+    \
+    # 2. Period Evolution\
+    ax2 = fig.add_subplot(3, 3, 2)\
+    periods = timing_result['toas'] / (timing_result['times'] / timing_result['period'])\
+    ax2.plot(timing_result['times'], periods*1000, 'b-', linewidth=1)\
+    ax2.set_xlabel('Time (MJD)', fontsize=10)\
+    ax2.set_ylabel('Period (ms)', fontsize=10)\
+    ax2.set_title('Period Evolution', fontweight='bold')\
+    ax2.grid(True, alpha=0.3)\
+    \
+    # 3. Shapiro Delay\
+    ax3 = fig.add_subplot(3, 3, 3)\
+    ax3.plot(np.degrees(orbital_phase), shapiro_delay, 'g-', linewidth=2)\
+    ax3.set_xlabel('Orbital Phase (degrees)', fontsize=10)\
+    ax3.set_ylabel('Shapiro Delay (\uc0\u956 s)', fontsize=10)\
+    ax3.set_title('Shapiro Delay in Binary', fontweight='bold')\
+    ax3.grid(True, alpha=0.3)\
+    \
+    # 4. GW Signal\
+    ax4 = fig.add_subplot(3, 3, 4)\
+    ax4.plot(gw_times, gw_signal*1e9, 'r-', linewidth=1)\
+    ax4.set_xlabel('Time (years)', fontsize=10)\
+    ax4.set_ylabel('Timing Residual (ns)', fontsize=10)\
+    ax4.set_title('Gravitational Wave Signature', fontweight='bold')\
+    ax4.grid(True, alpha=0.3)\
+    \
+    # 5. Cosmological Distance vs Redshift\
+    ax5 = fig.add_subplot(3, 3, 5)\
+    z_array = np.linspace(0, 3, 100)\
+    D_C = []\
+    D_L = []\
+    D_A = []\
+    \
+    for z in z_array:\
+        dist = methods.cosmological_distance_ladder(z)\
+        D_C.append(dist['comoving_distance'])\
+        D_L.append(dist['luminosity_distance'])\
+        D_A.append(dist['angular_diameter_distance'])\
+    \
+    ax5.plot(z_array, D_C, 'b-', label='Comoving', linewidth=2)\
+    ax5.plot(z_array, D_L, 'r-', label='Luminosity', linewidth=2)\
+    ax5.plot(z_array, D_A, 'g-', label='Angular Diameter', linewidth=2)\
+    ax5.set_xlabel('Redshift (z)', fontsize=10)\
+    ax5.set_ylabel('Distance (Mpc)', fontsize=10)\
+    ax5.set_title('Cosmological Distance Ladder', fontweight='bold')\
+    ax5.legend()\
+    ax5.grid(True, alpha=0.3)\
+    \
+    # 6. DM vs Distance\
+    ax6 = fig.add_subplot(3, 3, 6)\
+    dm_range = np.linspace(1, 1000, 100)\
+    dist_ne = [methods.dispersion_measure_distance(dm, 'ne2001') for dm in dm_range]\
+    dist_ym = [methods.dispersion_measure_distance(dm, 'ymw16') for dm in dm_range]\
+    \
+    ax6.plot(dm_range, dist_ne, 'b-', label='NE2001', linewidth=2)\
+    ax6.plot(dm_range, dist_ym, 'r--', label='YMW16', linewidth=2)\
+    ax6.set_xlabel('Dispersion Measure (pc/cm\'b3)', fontsize=10)\
+    ax6.set_ylabel('Distance (kpc)', fontsize=10)\
+    ax6.set_title('DM-Distance Relation', fontweight='bold')\
+    ax6.legend()\
+    ax6.grid(True, alpha=0.3)\
+    \
+    # 7. Age vs Period diagram (P-Pdot)\
+    ax7 = fig.add_subplot(3, 3, 7)\
+    periods = np.logspace(-3, 1, 50)\
+    pdots = np.logspace(-21, -10, 50)\
+    P, Pdot = np.meshgrid(periods, pdots)\
+    \
+    # Characteristic age\
+    tau = P / (2 * Pdot) / (365.25 * 24 * 3600 * 1e6)  # Myr\
+    \
+    contour = ax7.contourf(np.log10(P), np.log10(Pdot), np.log10(tau), \
+                           levels=20, cmap='viridis')\
+    ax7.set_xlabel('log\uc0\u8321 \u8320 (Period) [s]', fontsize=10)\
+    ax7.set_ylabel('log\uc0\u8321 \u8320 (Period Derivative) [s/s]', fontsize=10)\
+    ax7.set_title('P-Pdot Diagram (Age)', fontweight='bold')\
+    plt.colorbar(contour, ax=ax7, label='log\uc0\u8321 \u8320 (Age) [Myr]')\
+    \
+    # 8. Hubble Diagram (Extended)\
+    ax8 = fig.add_subplot(3, 3, 8)\
+    z_hubble = np.linspace(0, 2, 100)\
+    v_recession = []\
+    \
+    for z in z_hubble:\
+        # Recession velocity (relativistic)\
+        v = methods.c * ((1+z)**2 - 1) / ((1+z)**2 + 1)\
+        v_recession.append(v)\
+    \
+    ax8.plot(z_hubble, v_recession, 'purple', linewidth=2)\
+    ax8.set_xlabel('Redshift (z)', fontsize=10)\
+    ax8.set_ylabel('Recession Velocity (km/s)', fontsize=10)\
+    ax8.set_title('Relativistic Hubble Law', fontweight='bold')\
+    ax8.grid(True, alpha=0.3)\
+    \
+    # 9. Summary Statistics\
+    ax9 = fig.add_subplot(3, 3, 9)\
+    ax9.axis('off')\
+    \
+    summary = f"""\
+\uc0\u9556 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9559 \
+\uc0\u9553    METHOD DEMONSTRATION SUMMARY        \u9553 \
+\uc0\u9562 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9565 \
+\
+METHODS DEMONSTRATED:\
+\
+1. Pulsar Timing Analysis\
+   \'95 Period measurement accuracy\
+   \'95 Spin-down rate detection\
+   \'95 Residual analysis\
+   \
+2. Binary Pulsar Effects\
+   \'95 Shapiro delay (GR test)\
+   \'95 Orbital parameter measurement\
+   \
+3. Gravitational Wave Detection\
+   \'95 Nanohertz GW sensitivity\
+   \'95 Pulsar Timing Array method\
+   \
+4. Cosmological Distances\
+   \'95 Multiple distance measures\
+   \'95 Redshift-distance relations\
+   \
+5. Galactic Electron Density\
+   \'95 DM to distance conversion\
+   \'95 Multiple models compared\
+   \
+6. Spin-Down Analysis\
+   \'95 Braking index calculation\
+   \'95 Magnetic field evolution\
+\
+ APPLICATIONS:\
+   \'95 Tests of General Relativity\
+   \'95 Gravitational wave astronomy\
+   \'95 Cosmological measurements\
+   \'95 Galactic structure mapping\
+    """\
+    \
+    ax9.text(0.05, 0.95, summary, transform=ax9.transAxes,\
+            fontsize=8, verticalalignment='top', family='monospace',\
+            bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))\
+    \
+    plt.tight_layout()\
+    plt.show()\
+\
+if __name__ == "__main__":\
+    print("\\n Starting Advanced Pulsar Methods Demonstration...\\n")\
+    methods = demonstrate_methods()\
+    print("\\n" + "="*70)\
+    print(" ALL METHODS DEMONSTRATED SUCCESSFULLY!")\
+    print("="*70)}
